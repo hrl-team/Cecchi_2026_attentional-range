@@ -1,0 +1,41 @@
+function contexts = condi_spec(db_header_part)
+
+contexts = db_header_part.exp_param{:}.condiObj.learning;
+
+for cont = 1:numel(contexts) % Loop through contexts
+
+    if isfield(contexts(cont), 'nbOptWhenForced')
+
+        switch contexts(cont).nbOptWhenForced
+            case 3
+                forced_condi = '100T'; % 100% ternary
+            case 2
+                forced_condi = '50B'; % 50% binary
+        end
+
+    elseif isfield(contexts(cont), 'imgPercentHighLumi')
+
+        switch contexts(cont).imgPercentHighLumi(2)
+            case 0
+                forced_condi = '100H'; % 100% High-value
+            case 50
+                forced_condi = '50M'; % 50% Mid-value
+        end
+
+    end
+
+    contexts(cont).condi_name = sprintf('%s%s', upper(contexts(cont).amplitude(1)), forced_condi);
+
+    switch contexts(cont).condi_name
+        case {'Wnf'}
+            contexts(cont).color = [74, 101, 193] / 255;
+        case {'Wsf'}
+            contexts(cont).color = [238, 125, 80] / 255;
+        case {'Nnf'}
+            contexts(cont).color = [140, 113, 175] / 255;
+        case {'Nsf'}
+            contexts(cont).color = [246, 167, 68] / 255;
+    end
+end
+
+end

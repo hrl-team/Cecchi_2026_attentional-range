@@ -1,0 +1,311 @@
+function [out] = choice_rate_transfer(db, savepath, opt)
+
+% Contexts :
+% - NARROW non-forced = Nnf
+% - NARROW semi-forced = Nsf
+% - WIDE non-forced = Wnf
+% - WIDE semi-forced = Wsf
+
+opt.part_count = 0;
+
+%% Loop through participants
+
+for part = 1:height(db.header)
+
+    clearvars -except db savepath opt part out
+
+    opt.part_count = opt.part_count + 1;
+    condi = db.expe.id == db.header.id(part) & ismember(db.expe.phase, 'transfer'); % Select participant transfer trials
+    transfer_data = db.expe(condi,:);
+
+    out.contexts = condi_spec(db.header(part,:));
+
+    % Loop through contexts
+    for cont = 1:numel(out.contexts)
+        for img = 1:numel(out.contexts(cont).imgName) % Loop through options of the context
+
+            counter = 0; % Nb of times the option was presented
+            chosen = 0; % Nb of times the option was chosen
+            imgName = out.contexts(cont).imgName{img};
+            imgVal = out.contexts(cont).imgMean(img);
+
+            img_idx = cellfun(@(x) find(strcmp(x, imgName)), transfer_data.stim_id, 'UniformOutput', false);
+            img_idx(cellfun(@isempty, img_idx)) = {0};
+            img_idx = cell2mat(img_idx);
+
+            for trial = find(img_idx)' % Loop through trials containing the option
+
+                trial_choice_idx = transfer_data.choice_screen_idx(trial) + 1; % Index of the chosen option
+                stimPos = img_idx(trial); % Context option index
+
+                if ~isempty(stimPos) % Stim was in trial
+                    counter = counter + 1;
+                    if stimPos == trial_choice_idx % If the image was chosen
+                        chosen = chosen + 1;
+                    end
+                end
+
+            end % End of the loop through trials
+
+            out.choice_rate(cont).(sprintf('opt%g', imgVal))(opt.part_count) = chosen / counter;
+
+        end % End of the loop through options of the context
+    end % End of the loop through contexts
+
+    if opt.merge_range % Merge WIDE and NARROW conditions
+
+        out.mergedCondName = {'100', '50'};
+        newFields = {'min', 'mid', 'max'};
+
+        for c = 1:numel(out.mergedCondName)
+            cond2merge = find(contains({out.contexts.condi_name}, out.mergedCondName(c)));
+            for ii = 1:numel(newFields)
+                choice_rate = [];
+                for m = 1:numel(cond2merge)
+                    imgMean = sprintf('opt%d', out.contexts(cond2merge(m)).imgMean(ii));
+                    choice_rate(m) = out.choice_rate(cond2merge(m)).(imgMean)(part);
+                end
+                out.choice_rate_merged(c).(newFields{ii})(part) = mean(choice_rate);
+            end
+        end
+
+    end % End of if opt.merge_range == 1
+
+end % End of the loop through participants
+
+clearvars -except db savepath opt out
+
+%% Stats
+
+if opt.stats == 1
+
+    out.all_p = [];
+
+    if ~opt.merge_range
+
+        fprintf('\n--------------- <strong>Context-dependency (in the 100%% ternary/high-value contexts)</strong> ---------------\n\n')
+
+        % Context-dependency
+        x{1} = [out.choice_rate(ismember({out.contexts.condi_name}, 'Wt100')).opt50 ; out.choice_rate(ismember({out.contexts.condi_name}, 'Nt100')).opt50]'; % 100%: Mid in WIDE vs. High in NARROW (i.e., same objective value)
+        row_names{1} = 'Mid in WIDE vs. High in NARROW (i.e., same objective value)';
+
+        % Paired t-test and Cohen's d
+        for i = 1:numel(x)
+            [~,p,ci,stats] = ttest(x{i}(:,1), x{i}(:,2));
+            out.all_p = [out.all_p, p];
+            effect_size = meanEffectSize(x{i}(:,1), x{i}(:,2), 'Paired', true, 'Effect', 'cohen');
+
+            t_table(i,:) = array2table([mean(x{i}(:,1)-x{i}(:,2)), std(x{i}(:,1)-x{i}(:,2)), stats.df', stats.tstat', p', ci(1,:)', ci(2,:)', effect_size.Effect'], 'VariableNames', {'mean', 'sd', 'df', 't', 'p', 'CI1', 'CI2', 'd'});
+        end
+        t_table.Properties.RowNames = row_names;
+
+        disp(t_table)
+
+        clearvars -except db savepath opt out
+
+        fprintf('\n--------------- <strong>Non-linear processing (in the 100%% ternary/high-value contexts)</strong> ---------------\n\n')
+
+        % Non-linear processing
+        x{1} = [out.choice_rate(ismember({out.contexts.condi_name}, 'Wt100')).opt14 ; out.choice_rate(ismember({out.contexts.condi_name}, 'Wt100')).opt50]'; % 100%: Low vs. Mid-value in WIDE
+        x{2} = [out.choice_rate(ismember({out.contexts.condi_name}, 'Nt100')).opt14 ; out.choice_rate(ismember({out.contexts.condi_name}, 'Nt100')).opt32]'; % 100%: Low vs. Mid-value in NARROW
+
+        row_names{1} = 'Low vs. Mid-value in WIDE';
+        row_names{2} = 'Low vs. Mid-value in NARROW';
+
+        % Paired t-test and Cohen's d
+        for i = 1:numel(x)
+            [~,p,ci,stats] = ttest(x{i}(:,1), x{i}(:,2));
+            out.all_p = [out.all_p, p];
+            effect_size = meanEffectSize(x{i}(:,1), x{i}(:,2), 'Paired', true, 'Effect', 'cohen');
+
+            t_table(i,:) = array2table([mean(x{i}(:,1)-x{i}(:,2)), std(x{i}(:,1)-x{i}(:,2)), stats.df', stats.tstat', p', ci(1,:)', ci(2,:)', effect_size.Effect'], 'VariableNames', {'mean', 'sd', 'df', 't', 'p', 'CI1', 'CI2', 'd'});
+        end
+        t_table.Properties.RowNames = row_names;
+
+        disp(t_table)
+
+        clearvars -except db savepath opt out
+
+        fprintf('\n--------------- <strong>Effect of attention manipulation (in the 50%% binary/mid-value contexts)</strong> ---------------\n\n')
+
+        % Non-linear processing
+        x{1} = [out.choice_rate(ismember({out.contexts.condi_name}, 'Wb50')).opt14 ; out.choice_rate(ismember({out.contexts.condi_name}, 'Wb50')).opt50]'; % 50%: Low vs. Mid-value in WIDE
+        x{2} = [out.choice_rate(ismember({out.contexts.condi_name}, 'Nb50')).opt14 ; out.choice_rate(ismember({out.contexts.condi_name}, 'Nb50')).opt32]'; % 50%: Low vs. Mid-value in NARROW
+
+        row_names{1} = 'Low vs. Mid-value in WIDE';
+        row_names{2} = 'Low vs. Mid-value in NARROW';
+
+        % Paired t-test and Cohen's d
+        for i = 1:numel(x)
+            [~,p,ci,stats] = ttest(x{i}(:,1), x{i}(:,2));
+            out.all_p = [out.all_p, p];
+            effect_size = meanEffectSize(x{i}(:,1), x{i}(:,2), 'Paired', true, 'Effect', 'cohen');
+
+            t_table(i,:) = array2table([mean(x{i}(:,1)-x{i}(:,2)), std(x{i}(:,1)-x{i}(:,2)), stats.df', stats.tstat', p', ci(1,:)', ci(2,:)', effect_size.Effect'], 'VariableNames', {'mean', 'sd', 'df', 't', 'p', 'CI1', 'CI2', 'd'});
+        end
+        t_table.Properties.RowNames = row_names;
+
+        disp(t_table)
+
+    elseif opt.merge_range
+
+        fprintf('\n--------------- <strong>Non-linear processing (in the 100%% ternary/high-value contexts)</strong> ---------------\n\n')
+
+        % Non-linear processing
+        x{1} = [out.choice_rate_merged(contains(out.mergedCondName, '100')).mid ; out.choice_rate_merged(contains(out.mergedCondName, '100')).min]'; % 100%: Mid vs. Low-value
+        row_names{1} = 'Mid vs. Low-value';
+
+        % Paired t-test and Cohen's d
+        for i = 1:numel(x)
+            [~,p,ci,stats] = ttest(x{i}(:,1), x{i}(:,2));
+            out.all_p = [out.all_p, p];
+            effect_size = meanEffectSize(x{i}(:,1), x{i}(:,2), 'Paired', true, 'Effect', 'cohen');
+
+            t_table(i,:) = array2table([mean(x{i}(:,1)-x{i}(:,2)), std(x{i}(:,1)-x{i}(:,2)), stats.df', stats.tstat', p', ci(1,:)', ci(2,:)', effect_size.Effect'], 'VariableNames', {'mean', 'sd', 'df', 't', 'p', 'CI1', 'CI2', 'd'});
+        end
+        t_table.Properties.RowNames = row_names;
+
+        disp(t_table)
+
+        clearvars -except db savepath opt out
+
+        fprintf('\n--------------- <strong>Effect of attention manipulation (in the 50%% binary/mid-value contexts)</strong> ---------------\n\n')
+
+        % Non-linear processing
+        x{1} = [out.choice_rate_merged(contains(out.mergedCondName, '50')).mid ; out.choice_rate_merged(contains(out.mergedCondName, '50')).min]'; % 50%: Mid vs. Low-value
+        row_names{1} = 'Mid vs. Low-value';
+
+        % Paired t-test and Cohen's d
+        for i = 1:numel(x)
+            [~,p,ci,stats] = ttest(x{i}(:,1), x{i}(:,2));
+            out.all_p = [out.all_p, p];
+            effect_size = meanEffectSize(x{i}(:,1), x{i}(:,2), 'Paired', true, 'Effect', 'cohen');
+
+            t_table(i,:) = array2table([mean(x{i}(:,1)-x{i}(:,2)), std(x{i}(:,1)-x{i}(:,2)), stats.df', stats.tstat', p', ci(1,:)', ci(2,:)', effect_size.Effect'], 'VariableNames', {'mean', 'sd', 'df', 't', 'p', 'CI1', 'CI2', 'd'});
+        end
+        t_table.Properties.RowNames = row_names;
+
+        disp(t_table)
+
+    end
+
+    % Benjamini-Hochberg procedure (multiple comparisons)
+    disp(array2table(fdr_BH(out.all_p, 0.05), 'RowNames', {'Benjamini-Hochberg procedure'}))
+
+end % End of the condition if opt.stats = 1
+
+%% Figure
+
+if opt.plot == 1
+    if ~opt.merge_range
+
+        fig = figure;
+        t = tiledlayout(2, numel(out.contexts)/2, 'TileSpacing', 'Compact');
+
+        for cond = 1:numel(out.contexts)
+
+            nexttile
+            count = 0;
+
+            choiceRate = out.choice_rate(cond);
+            condField = fieldnames(choiceRate);
+            condField = sort(condField(~structfun(@isempty, choiceRate))); % Remove empty fields + sort them
+
+            for field = 1:numel(condField)
+
+                count = count + 1;
+
+                o.violinSpace = 'right';
+                o.pos = count;
+                o.showData = true;
+                o.color = out.contexts(cond).color;
+
+                violaPlot(choiceRate.(condField{field}), o)
+
+                xLabels{field} = condField{field}(isstrprop(condField{field}, 'digit'));
+
+            end
+
+            % Axes
+            title(sprintf('%s', out.contexts(cond).condi_name))
+
+            xticks(1:count)
+            xticklabels(xLabels)
+            xlim([0 count+1]);
+            ylim([0 1]);
+
+            % Line
+            yl = plot(xlim, [1/3 1/3], 'k:', 'LineWidth', .5);
+            uistack(yl,'bottom')
+
+        end % End of the loop through conditions
+
+        xlabel(t,'Option value')
+        ylabel(t,'Transfer choice rate')
+
+        % Save
+        figSize = [30 20]; % [width height]
+        fig.PaperPosition = [0, 0, figSize]; % [left bottom width height]
+        fig.PaperSize = figSize;
+        fig_name = fullfile(savepath, 'Figures', 'Behavior', sprintf('%s_choice_rate_transfer', opt.task));
+        print(fig, fig_name, '-dpdf', '-r200', '-image');
+
+        close(fig)
+
+    elseif opt.merge_range
+
+        %% Figure merged WIDE and NARROW
+
+        fig = figure;
+        t = tiledlayout(1, numel(out.mergedCondName), 'TileSpacing', 'Compact');
+
+        for cond = 1:numel(out.mergedCondName)
+
+            nexttile
+
+            choiceRate = out.choice_rate_merged(cond);
+            condField = fieldnames(choiceRate);
+            plot_color = mean(vertcat(out.contexts(contains({out.contexts.condi_name}, out.mergedCondName(cond)),:).color));
+
+            for field = 1:numel(condField)
+
+                o.violinSpace = 'right';
+                o.pos = field;
+                o.showData = true;
+                o.color = plot_color;
+
+                violaPlot(choiceRate.(condField{field}), o)
+
+            end
+
+            % Axes
+            title(sprintf('%s', out.mergedCondName{cond}))
+
+            xticks(1:numel(condField))
+            xticklabels(condField)
+            xlim([0 numel(condField)+1]);
+            ylim([0 1]);
+
+            % Line
+            yl = plot(xlim, [1/3 1/3], 'k:', 'LineWidth', .5);
+            uistack(yl,'bottom')
+
+        end % End of the loop through conditions
+
+        xlabel(t,'Option value')
+        ylabel(t,'Transfer choice rate')
+
+        % Save
+        figSize = [30 15]; % [width height]
+        fig.PaperPosition = [0, 0, figSize]; % [left bottom width height]
+        fig.PaperSize = figSize;
+        fig_name = fullfile(savepath, 'Figures', 'Behavior', sprintf('%s_choice_rate_transfer_merged_range', opt.task));
+        print(fig, fig_name, '-dpdf', '-r200', '-image');
+
+        close(fig)
+
+    end
+
+end % End of the condition if opt.plot = 1
+
+end
