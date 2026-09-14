@@ -1,11 +1,11 @@
 
-# Cecchi_2025_attention_norm_RL
+# Cecchi_2026_attention_norm_RL
 
 This repository contains the behavioral analyses, eye-tracking pipelines, and model fitting/simulation scripts for the study:
 
-**"Elucidating Attentional Mechanisms Underlying Value Normalization in Human Reinforcement Learning"**  
+**"Attention modulates value normalization in human reinforcement learning by shaping reward encoding"**  
 Authors: Romane Cecchi, Sebastian Gluth, Stefano Palminteri  
-Year: 2025
+*Nature Communications* 17, 7811 (2026). https://www.nature.com/articles/s41467-026-74747-w
 
 ---
 
@@ -22,7 +22,7 @@ This project includes analyses of data from three reinforcement learning experim
 ## 📁 Folder Structure
 
 ```
-Cecchi_2025_attention_norm_RL/
+Cecchi_2026_attention_norm_RL/
 ├── behavior_cecchi2025.m                  % Behavioral analysis script
 ├── eye_behavior_cecchi2025.m              % Eye-tracking fixation analysis script
 ├── model_fitting_cecchi2025.m             % Main model-fitting entry point (models 1–14)
@@ -127,6 +127,8 @@ Figures will be automatically saved in the `Figures/` directory.
 
 ## License
 
+Copyright (C) 2026 Romane Cecchi
+
 This code is released under the GNU General Public License v3.0 — see
 [LICENSE](LICENSE).
 
@@ -134,9 +136,12 @@ This code is released under the GNU General Public License v3.0 — see
 
 ## Citation
 
-If you use this code, please cite the associated preprint or publication:
+If you use this code, please cite the associated publication:
 
-> Cecchi, R., Gluth, S., & Palminteri, S. (2025). *Elucidating Attentional Mechanisms Underlying Value Normalization in Human Reinforcement Learning*.
+> Cecchi, R., Gluth, S. & Palminteri, S. Attention modulates value
+> normalization in human reinforcement learning by shaping reward
+> encoding. *Nat. Commun.* 17, 7811 (2026).
+> https://www.nature.com/articles/s41467-026-74747-w
 
 ---
 
