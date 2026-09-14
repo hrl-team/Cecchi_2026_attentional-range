@@ -125,6 +125,13 @@ Figures will be automatically saved in the `Figures/` directory.
 
 ---
 
+## License
+
+This code is released under the GNU General Public License v3.0 — see
+[LICENSE](LICENSE).
+
+---
+
 ## Citation
 
 If you use this code, please cite the associated preprint or publication:
